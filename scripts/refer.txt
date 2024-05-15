@@ -1,0 +1,100 @@
+# def feature_engineering(data):
+#     """
+#     Perform feature engineering on the dataset.
+#     """
+#     # Example feature engineering techniques
+#     # Create new feature by combining existing features
+#     data['TotalPolicyAmount'] = data['PolicyAmount'] * data['PolicyCount']
+    
+#     # Example: Extract year and month from a date column
+#     data['TransactionYear'] = pd.to_datetime(data['TransactionDate']).dt.year
+#     data['TransactionMonth'] = pd.to_datetime(data['TransactionDate']).dt.month
+
+#     # Return the modified DataFrame
+#     return data
+
+
+# def encode_categorical_data(data):
+#     """
+#     Encode categorical features in the dataset.
+#     """
+#     # Example encoding techniques
+#     # One-hot encoding for categorical features
+#     data = pd.get_dummies(data, columns=['PolicyType', 'VehicleMake'], drop_first=True)
+    
+#     # Example: Label encoding for a categorical feature
+#     from sklearn.preprocessing import LabelEncoder
+#     label_encoder = LabelEncoder()
+#     data['ClaimStatusEncoded'] = label_encoder.fit_transform(data['ClaimStatus'])
+
+#     # Return the modified DataFrame
+#     return data
+
+
+# print(data.describe())
+
+# # After data is converted to csv 
+
+
+
+#  find if there are missing values check quality of data and replace with their mean value
+
+missing_values = data.isnull().sum()
+
+print("Number of missing values\n")
+
+print(missing_values)
+
+numerical_columns = data.select_dtypes(include=np.number).columns
+
+
+# Impute missing values for numerical features
+for col in data.select_dtypes(include='number').columns:
+    data[col] = data[col].fillna(data[col].mean())
+
+
+# Impute missing values for categorical features
+for col in data.select_dtypes(include='object').columns:
+    data[col] = data[col].fillna('N/A')
+
+
+
+
+missing_values = data.isnull().sum()
+
+print("Number of missing values after data cleaning\n")
+
+print(missing_values)
+
+
+# Get unique datatypes for all columns
+unique_datatypes = data.dtypes.unique()
+
+# Print unique datatypes
+print("Unique data types in the DataFrame:")
+for datatype in unique_datatypes:
+    print(datatype)
+
+
+# Get the datatype of NumberOfVehiclesInFleet column
+column_datatype = data['NumberOfVehiclesInFleet'].dtype
+
+# Print the datatype
+print("Datatype of NumberOfVehiclesInFleet column:", column_datatype)
+
+# # Feature Engineering
+# # Extract year and month from TransactionMonth
+# df['TransactionYear'] = pd.to_datetime(df['TransactionMonth']).dt.year
+# df['TransactionMonth'] = pd.to_datetime(df['TransactionMonth']).dt.month
+
+# # One-hot encode all categorical features
+# for col in df.select_dtypes(include='object').columns:
+#     df = pd.get_dummies(df, columns=[col], drop_first=True)
+
+# # Label encoding for categorical features (example: LegalType)
+# from sklearn.preprocessing import LabelEncoder
+# label_encoder = LabelEncoder()
+# df['LegalType'] = label_encoder.fit_transform(df['LegalType'])
+
+# # Save the preprocessed data
+# df.to_csv("preprocessed_data.csv", index=False)
