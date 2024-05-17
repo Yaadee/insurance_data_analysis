@@ -1,37 +1,31 @@
+import unittest
 import pandas as pd
-from scipy import stats
-from sklearn.preprocessing import LabelEncoder
+import sys
+import os
 
-def read_data(file_path):
-    """Reads the CSV file into a DataFrame."""
-    df = pd.read_csv(file_path, low_memory=False)
-    return df
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src', 'ab_testing'))
 
-def preprocess_data(df):
-    """Preprocesses the DataFrame."""
-    # Convert 'TransactionMonth' column to date format
-    df['TransactionMonth'] = pd.to_datetime(df['TransactionMonth'])
+# Import the conduct_t_test function from ab_hypothesis_testing.py
+from ab_hypothesis_testing import conduct_t_test, stats
 
-    # Convert boolean columns to integers (0 and 1)
-    boolean_columns = df.select_dtypes(include=['bool']).columns
-    for column in boolean_columns:
-        df[column] = df[column].astype(int)
+class TestABTesting(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Construct the path to the CSV file using the parent directory
+        data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'datasets', 'model_data.csv')
+        cls.df = pd.read_csv(data_path)
 
-    # Perform label encoding for categorical columns
-    label_encoders = {}
-    categorical_columns = df.select_dtypes(include=['object']).columns
-    for column in categorical_columns:
-        le = LabelEncoder()
-        df[column] = le.fit_transform(df[column].astype(str))
-        label_encoders[column] = le
-
-    return df, label_encoders
+    def test_conduct_t_test(self):
+        group_a = self.df[self.df['Province'] == 'Gauteng']['TotalClaims']
+        group_b = self.df[self.df['Province'] != 'Gauteng']['TotalClaims']
+        p_value = conduct_t_test(group_a, group_b)
+        self.assertIsInstance(p_value, float)
 
 def conduct_t_test(group_a, group_b):
     """Conducts t-test for two groups."""
     t_stat, p_value = stats.ttest_ind(group_a, group_b)
     return p_value
-
+    
 def analyze_provinces(df):
     """Analyzes risk differences across provinces."""
     provinces = df['Province'].unique()
@@ -81,3 +75,6 @@ def analyze_gender_differences(df):
         print('Reject the null hypothesis for gender risk difference.')
     else:
         print('Fail to reject the null hypothesis for gender risk difference.')
+
+if __name__ == '__main__':
+    unittest.main()

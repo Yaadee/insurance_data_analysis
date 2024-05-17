@@ -1,2 +1,4 @@
 venv/
-
+.vscode
+tests/__pycache__
+src/ab_testing/__pycache__
