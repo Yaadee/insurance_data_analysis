@@ -1,103 +1,45 @@
+import unittest
 import pandas as pd
-import numpy as np
-from sklearn.preprocessing import LabelEncoder
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-# Load the dataset from the text file
-data_txt = "/home/yadasa/Desktop/InsuranceDataAnalysis/data/datasets/MachineLearningRating_v3.txt"
-df = pd.read_csv(data_txt, delimiter='|', low_memory=False)
-# Save the dataset as a CSV file
-data_csv = "/home/yadasa/Desktop/InsuranceDataAnalysis/data/datasets/historical_insurance_data.csv"
-df.to_csv(data_csv, index=False)
+from prepare_data import handle_missing_data, encode_categorical_data, feature_engineering, prepare_data
 
-print(df.describe())
-print(df.dtypes)
+class TestDataPreparation(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.df = pd.read_csv('/home/yadasa/Desktop/InsuranceDataAnalysis/data/datasets/model_data.csv', low_memory=False)
 
-# Load the dataset
-def loaddata():
-    data = pd.read_csv('/home/yadasa/Desktop/InsuranceDataAnalysis/data/datasets/historical_insurance_data.csv', low_memory=False)
-    return data
+    def test_handle_missing_data(self):
+        df_cleaned = handle_missing_data(self.df)
+        self.assertFalse(df_cleaned.isnull().values.any())
 
-data = loaddata()
+    def test_encode_categorical_data(self):
+        categorical_columns = ['Gender', 'Province']
+        df_encoded = encode_categorical_data(self.df, categorical_columns)
+        for col in categorical_columns:
+            self.assertNotIn(col, df_encoded.columns)
 
-# Data preparation functions
-def handle_missing_values(data):
-    """
-    Handle missing values in the dataset.
-    """
-    missing_values = data.isnull().sum()
-    print("Number of missing values:\n")
-    print(missing_values)
-    
-    # Impute missing values for numerical features
-    for col in data.select_dtypes(include=np.number).columns:
-        data[col] = data[col].fillna(data[col].mean())
-    
-    # Impute missing values for categorical features
-    for col in data.select_dtypes(include='object').columns:
-        data[col] = data[col].fillna('N/A')
-    
-    # Handling missing values specifically for 'NumberOfVehiclesInFleet' column
-    if 'NumberOfVehiclesInFleet' in data.columns:
-        data['NumberOfVehiclesInFleet'] = data['NumberOfVehiclesInFleet'].fillna(data['NumberOfVehiclesInFleet'].mean())
-    
-    missing_values = data.isnull().sum()
-    print("Number of missing values after data cleaning:\n")
-    print(missing_values)
+    def test_feature_engineering(self):
+        df_engineered = feature_engineering(self.df)
+        self.assertIn('ClaimRatio', df_engineered.columns)
 
-def feature_engineering(data):
-    """
-    Perform feature engineering on the dataset.
-    """
-    # Create new feature by combining existing features
-    if 'PolicyAmount' in data.columns and 'PolicyCount' in data.columns:
-        data['TotalPolicyAmount'] = data['PolicyAmount'] * data['PolicyCount']
-    
-    # Extract year and month from a date column
-    if 'TransactionDate' in data.columns:
-        data['TransactionYear'] = pd.to_datetime(data['TransactionDate']).dt.year
-        data['TransactionMonth'] = pd.to_datetime(data['TransactionDate']).dt.month
+    def test_prepare_data_total_claims(self):
+        df_cleaned = handle_missing_data(self.df)
+        categorical_columns = ['Gender', 'Province']
+        df_encoded = encode_categorical_data(df_cleaned, categorical_columns)
+        df_final = feature_engineering(df_encoded)
+        X_train, X_test, y_train, y_test = prepare_data(df_final, target_column='TotalClaims')
+        self.assertEqual(len(X_train) + len(X_test), len(df_final) - 1)  # Minus target column
 
-    return data
+    def test_prepare_data_total_premium(self):
+        df_cleaned = handle_missing_data(self.df)
+        categorical_columns = ['Gender', 'Province']
+        df_encoded = encode_categorical_data(df_cleaned, categorical_columns)
+        df_final = feature_engineering(df_encoded)
+        X_train, X_test, y_train, y_test = prepare_data(df_final, target_column='TotalPremium')
+        self.assertEqual(len(X_train) + len(X_test), len(df_final) - 1)  # Minus target column
 
-def encode_categorical_data(data):
-    """
-    Encode categorical features in the dataset.
-    """
-    # Custom encoding for specific columns
-    if 'Gender' in data.columns:
-        data['Gender'] = data['Gender'].replace({'Male': 1, 'Female': 0, 'Not specified': 3, 'N/A': 2})
-    
-    # Automatically encode other categorical features
-    label_encoders = {}
-    for col in data.select_dtypes(include='object').columns:
-        if col != 'Gender':  # Skip already encoded column
-            label_encoders[col] = LabelEncoder()
-            data[col] = label_encoders[col].fit_transform(data[col])
-    
-    return data
-
-# Handle missing values
-handle_missing_values(data)
-
-# Perform feature engineering
-data = feature_engineering(data)
-
-# Encode categorical data
-data = encode_categorical_data(data)
-
-# Calculate descriptive statistics for specific columns
-summary_stats = data[['TotalPremium', 'TotalClaims']].describe()
-print(summary_stats)
-
-"""
-The TotalPremium column has a mean value of approximately 61.91 and a standard deviation of 230.28, indicating some variability in premium amounts.
-The TotalClaims column has a mean value of approximately 64.86 and a standard deviation of 2384.08, suggesting higher variability in claim amounts compared to premiums.
-"""
-
-# Save the preprocessed data
-preprocessed_data_csv = "/home/yadasa/Desktop/InsuranceDataAnalysis/data/datasets/preprocessed_data.csv"
-data.to_csv(preprocessed_data_csv, index=False)
-
-print(data.describe())
-print(data.dtypes)
-print(data.head())
+if __name__ == '__main__':
+    unittest.main()
