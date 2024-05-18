@@ -1,4 +1,5 @@
 [core]
     remote = localstorage
+    autostage = true
 ['remote "localstorage"']
     url = /home/yadasa/Desktop/dvcStorage

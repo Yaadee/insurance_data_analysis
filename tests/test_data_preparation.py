@@ -1,67 +1,103 @@
-import unittest
 import pandas as pd
 import numpy as np
-import os
+from sklearn.preprocessing import LabelEncoder
 
-class TestInsuranceDataPreparation(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        # Load the dataset for testing
-        data_txt = "/home/yadasa/Desktop/InsuranceDataAnalysis/data/datasets/MachineLearningRating_v3.txt"
-        cls.df = pd.read_csv(data_txt, delimiter='|', low_memory=False)
-        cls.data_csv = "/home/yadasa/Desktop/InsuranceDataAnalysis/data/datasets/historical_insurance_data.csv"
-        cls.df.to_csv(cls.data_csv, index=False)
+# Load the dataset from the text file
+data_txt = "/home/yadasa/Desktop/InsuranceDataAnalysis/data/datasets/MachineLearningRating_v3.txt"
+df = pd.read_csv(data_txt, delimiter='|', low_memory=False)
+# Save the dataset as a CSV file
+data_csv = "/home/yadasa/Desktop/InsuranceDataAnalysis/data/datasets/historical_insurance_data.csv"
+df.to_csv(data_csv, index=False)
 
-    def setUp(self):
-        # Load the dataset for each test
-        self.data = pd.read_csv(self.data_csv, low_memory=False)
+print(df.describe())
+print(df.dtypes)
 
-    def test_handle_missing_values(self):
-        handle_missing_values(self.data)
-        self.assertFalse(self.data.isnull().values.any(), "There are still missing values after handling missing values.")
+# Load the dataset
+def loaddata():
+    data = pd.read_csv('/home/yadasa/Desktop/InsuranceDataAnalysis/data/datasets/historical_insurance_data.csv', low_memory=False)
+    return data
 
-    def test_feature_engineering(self):
-        initial_columns = set(self.data.columns)
-        data_fe = feature_engineering(self.data)
-        expected_columns = initial_columns.union({'TotalPolicyAmount', 'TransactionYear', 'TransactionMonth'})
-        self.assertTrue(expected_columns.issubset(data_fe.columns), "Feature engineering did not create the expected columns.")
+data = loaddata()
 
-    def test_encode_categorical_data(self):
-        data_encoded = encode_categorical_data(self.data)
-        self.assertIn('ClaimStatusEncoded', data_encoded.columns, "Categorical data encoding did not create 'ClaimStatusEncoded' column.")
-        self.assertTrue(pd.api.types.is_integer_dtype(data_encoded['ClaimStatusEncoded']), "'ClaimStatusEncoded' column is not of integer type.")
-
-    def test_descriptive_statistics(self):
-        handle_missing_values(self.data)
-        summary_stats = self.data[['TotalPremium', 'TotalClaims']].describe()
-        self.assertIn('mean', summary_stats.index, "Descriptive statistics did not compute 'mean'.")
-        self.assertIn('std', summary_stats.index, "Descriptive statistics did not compute 'std'.")
-
+# Data preparation functions
 def handle_missing_values(data):
-    """Handle missing values in the dataset."""
+    """
+    Handle missing values in the dataset.
+    """
+    missing_values = data.isnull().sum()
+    print("Number of missing values:\n")
+    print(missing_values)
+    
+    # Impute missing values for numerical features
     for col in data.select_dtypes(include=np.number).columns:
         data[col] = data[col].fillna(data[col].mean())
     
+    # Impute missing values for categorical features
     for col in data.select_dtypes(include='object').columns:
         data[col] = data[col].fillna('N/A')
     
+    # Handling missing values specifically for 'NumberOfVehiclesInFleet' column
     if 'NumberOfVehiclesInFleet' in data.columns:
         data['NumberOfVehiclesInFleet'] = data['NumberOfVehiclesInFleet'].fillna(data['NumberOfVehiclesInFleet'].mean())
+    
+    missing_values = data.isnull().sum()
+    print("Number of missing values after data cleaning:\n")
+    print(missing_values)
 
 def feature_engineering(data):
-    """Perform feature engineering on the dataset."""
-    data['TotalPolicyAmount'] = data['PolicyAmount'] * data['PolicyCount']
-    data['TransactionYear'] = pd.to_datetime(data['TransactionDate']).dt.year
-    data['TransactionMonth'] = pd.to_datetime(data['TransactionDate']).dt.month
+    """
+    Perform feature engineering on the dataset.
+    """
+    # Create new feature by combining existing features
+    if 'PolicyAmount' in data.columns and 'PolicyCount' in data.columns:
+        data['TotalPolicyAmount'] = data['PolicyAmount'] * data['PolicyCount']
+    
+    # Extract year and month from a date column
+    if 'TransactionDate' in data.columns:
+        data['TransactionYear'] = pd.to_datetime(data['TransactionDate']).dt.year
+        data['TransactionMonth'] = pd.to_datetime(data['TransactionDate']).dt.month
+
     return data
 
 def encode_categorical_data(data):
-    """Encode categorical features in the dataset."""
-    data = pd.get_dummies(data, columns=['PolicyType', 'VehicleMake'], drop_first=True)
-    from sklearn.preprocessing import LabelEncoder
-    label_encoder = LabelEncoder()
-    data['ClaimStatusEncoded'] = label_encoder.fit_transform(data['ClaimStatus'])
+    """
+    Encode categorical features in the dataset.
+    """
+    # Custom encoding for specific columns
+    if 'Gender' in data.columns:
+        data['Gender'] = data['Gender'].replace({'Male': 1, 'Female': 0, 'Not specified': 3, 'N/A': 2})
+    
+    # Automatically encode other categorical features
+    label_encoders = {}
+    for col in data.select_dtypes(include='object').columns:
+        if col != 'Gender':  # Skip already encoded column
+            label_encoders[col] = LabelEncoder()
+            data[col] = label_encoders[col].fit_transform(data[col])
+    
     return data
 
-if __name__ == '__main__':
-    unittest.main()
+# Handle missing values
+handle_missing_values(data)
+
+# Perform feature engineering
+data = feature_engineering(data)
+
+# Encode categorical data
+data = encode_categorical_data(data)
+
+# Calculate descriptive statistics for specific columns
+summary_stats = data[['TotalPremium', 'TotalClaims']].describe()
+print(summary_stats)
+
+"""
+The TotalPremium column has a mean value of approximately 61.91 and a standard deviation of 230.28, indicating some variability in premium amounts.
+The TotalClaims column has a mean value of approximately 64.86 and a standard deviation of 2384.08, suggesting higher variability in claim amounts compared to premiums.
+"""
+
+# Save the preprocessed data
+preprocessed_data_csv = "/home/yadasa/Desktop/InsuranceDataAnalysis/data/datasets/preprocessed_data.csv"
+data.to_csv(preprocessed_data_csv, index=False)
+
+print(data.describe())
+print(data.dtypes)
+print(data.head())

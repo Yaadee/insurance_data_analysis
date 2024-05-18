@@ -1,1 +1,1 @@
-from ab_testing import abhypothesistesting
+from . import abhypothesistesting
